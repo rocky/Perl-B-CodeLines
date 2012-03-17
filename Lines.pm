@@ -3,43 +3,19 @@ use strict; use warnings;
 
 our $VERSION   = "0.78";
 
-use B qw(class main_start main_root main_cv svref_2object OPf_KIDS);
-
-my $curcv;
-
-# output handle, used with all Concise-output printing
-our $walkHandle;	# public for your convenience
-BEGIN { $walkHandle = \*STDOUT }
+use B qw(class main_start main_root main_cv OPf_KIDS);
 
 # use Enbugger;
 sub concise_main {
     sequence(main_start);
     # Enbugger->stop;
-    $curcv = main_cv;
     return if class(main_root) eq "NULL";
     walk_topdown(main_root,
 		 sub { $_[0]->concise($_[1]) }, 0);
 }
 
 sub compile {
-    return sub {
-	concise_main();
-	return ();	# something
-    }
-}
-
-my $lastnext;	# remembers op-chain, used to insert gotos
-
-no warnings 'qw'; # "Possible attempt to put comments..."; use #7
-
-my %sequence_num;
-my $seq_max = 1;
-
-sub reset_sequence {
-    # reset the sequence
-    %sequence_num = ();
-    $seq_max = 1;
-    $lastnext = 0;
+    return sub { concise_main(); }
 }
 
 sub walk_topdown {
@@ -64,14 +40,12 @@ sub walk_topdown {
 sub sequence {
     my($op) = @_;
     my $oldop = 0;
-    return if class($op) eq "NULL" or exists $sequence_num{$$op};
+    return if class($op) eq "NULL";
     for (; $$op; $op = $op->next) {
-	last if exists $sequence_num{$$op};
 	my $name = $op->name;
 	if ($name =~ /^(null|scalar|lineseq|scope)$/) {
 	    next if $oldop and $ {$op->next};
 	} else {
-	    $sequence_num{$$op} = $seq_max++;
 	    if (class($op) eq "LOGOP") {
 		my $other = $op->other;
 		$other = $other->next while $other->name eq "null";
@@ -106,26 +80,6 @@ sub concise_op {
 
 sub B::OP::concise {
     my($op) = @_;
-    $lastnext = $op->next;
-    print $walkHandle concise_op($op);
-}
-
-# B::OP::terse (see Terse.pm) now just calls this
-sub b_terse {
-    my($op) = @_;
-
-    # This isn't necessarily right, but there's no easy way to get
-    # from an OP to the right CV. This is a limitation of the
-    # ->terse() interface style, and there isn't much to do about
-    # it. In particular, we can die in concise_op if the main pad
-    # isn't long enough, or has the wrong kind of entries, compared to
-    # the pad a sub was compiled with. The fix for that would be to
-    # make a backwards compatible "terse" format that never even
-    # looked at the pad, just like the old B::Terse. I don't think
-    # that's worth the effort, though.
-    $curcv = main_cv unless $curcv;
-
-    $lastnext = $op->next;
     print concise_op($op);
 }
 
