@@ -39,6 +39,8 @@ my $curcv;
 my $cop_seq_base;
 
 # output handle, used with all Concise-output printing
+our $walkHandle;	# public for your convenience
+BEGIN { $walkHandle = \*STDOUT }
 
 sub walk_output { # updates $walkHandle
     my $handle = shift;
