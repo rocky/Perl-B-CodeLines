@@ -1,8 +1,4 @@
 package B::Lines;
-# Copyright (C) 2000-2003 Stephen McCamant. All rights reserved.
-# This program is free software; you can redistribute and/or modify it
-# under the same terms as Perl itself.
-
 # Note: we need to keep track of how many use declarations/BEGIN
 # blocks this module uses, so we can avoid printing them when user
 # asks for the BEGIN blocks in her program. Update the comments and
