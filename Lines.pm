@@ -19,7 +19,6 @@ use B qw(class main_start main_root main_cv cstring svref_2object
 # rendering mechanics:
 # these 'formats' are the line-rendering templates
 # they're updated from %style when $stylename changes
-my ($format, $gotofmt, $treefmt) = ('', '', '');
 
 # lesser players:
 my $do_main = 0;	# force printing of main routine
