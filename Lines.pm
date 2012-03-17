@@ -15,34 +15,6 @@ use B qw(class ppname main_start main_root main_cv cstring svref_2object
 	 SVf_IOK SVf_NOK SVf_POK SVf_IVisUV SVf_FAKE OPf_KIDS OPf_SPECIAL
 	 CVf_ANON PAD_FAKELEX_ANON PAD_FAKELEX_MULTI SVf_ROK);
 
-my %style =
-  ("terse" =>
-   ["(?(#label =>\n)?)(*(    )*)#class (#addr) #name (?([#targ])?) "
-    . "#svclass~(?((#svaddr))?)~#svval~(?(label \"#coplabel\")?)\n",
-    "(*(    )*)goto #class (#addr)\n",
-    "#class pp_#name"],
-   "concise" =>
-   ["#hyphseq2 (*(   (x( ;)x))*)<#classsym> #exname#arg(?([#targarglife])?)"
-    . "~#flags(?(/#private)?)(?(:#hints)?)(x(;~->#next)x)\n"
-    , "  (*(    )*)     goto #seq\n",
-    "(?(<#seq>)?)#exname#arg(?([#targarglife])?)"],
-   "linenoise" =>
-   ["(x(;(*( )*))x)#noise#arg(?([#targarg])?)(x( ;\n)x)",
-    "gt_#seq ",
-    "(?(#seq)?)#noise#arg(?([#targarg])?)"],
-   "debug" =>
-   ["#class (#addr)\n\top_next\t\t#nextaddr\n\top_sibling\t#sibaddr\n\t"
-    . "op_ppaddr\tPL_ppaddr[OP_#NAME]\n\top_type\t\t#typenum\n" .
-    ($] > 5.009 ? '' : "\top_seq\t\t#seqnum\n")
-    . "\top_flags\t#flagval\n\top_private\t#privval\t#hintsval\n"
-    . "(?(\top_first\t#firstaddr\n)?)(?(\top_last\t\t#lastaddr\n)?)"
-    . "(?(\top_sv\t\t#svaddr\n)?)",
-    "    GOTO #addr\n",
-    "#addr"],
-   "env" => [$ENV{B_CONCISE_FORMAT}, $ENV{B_CONCISE_GOTO_FORMAT},
-	     $ENV{B_CONCISE_TREE_FORMAT}],
-  );
-
 # Renderings, ie how Concise prints, is controlled by these vars
 # primary:
 our $stylename;		# selects current style from %style
@@ -51,7 +23,7 @@ my $order = "basic";	# how optree is walked & printed: basic, exec, tree
 # rendering mechanics:
 # these 'formats' are the line-rendering templates
 # they're updated from %style when $stylename changes
-my ($format, $gotofmt, $treefmt);
+my ($format, $gotofmt, $treefmt) = ('', '', '');
 
 # lesser players:
 my $base = 36;		# how <sequence#> is displayed
@@ -63,20 +35,8 @@ my $show_src;		# show source code
 
 # another factor: can affect all styles!
 
-set_style_standard("concise");
-
 my $curcv;
 my $cop_seq_base;
-
-sub set_style {
-    ($format, $gotofmt, $treefmt) = @_;
-}
-
-sub set_style_standard {
-    ($stylename) = @_; # update rendering state
-    die "err: style '$stylename' unknown\n" unless exists $style{$stylename};
-    set_style(@{$style{$stylename}});
-}
 
 # output handle, used with all Concise-output printing
 our $walkHandle;	# public for your convenience
@@ -202,20 +162,10 @@ my $end_sym   = "\e(B"; # "\cO" respectively
 
 my @render_packs; # collect -stash=<packages>
 
-sub compileOpts {
-    # set rendering state from options and args
-    my (@options,@args);
-    if (@_) {
-	@options = grep(/^-/, @_);
-	@args = grep(!/^-/, @_);
-    }
-    return (@args);
-}
-
 sub compile {
-    my (@args) = compileOpts(@_);
+    my (@args) = ();
     return sub {
-	my @newargs = compileOpts(@_); # accept new rendering options
+	my @newargs = ();
 	warn "disregarding non-options: @newargs\n" if @newargs;
 
 	for my $objname (@args) {
@@ -283,22 +233,6 @@ my %opclass = ('OP' => "0", 'UNOP' => "1", 'BINOP' => "2", 'LOGOP' => "|",
 	       'PVOP' => '"', 'LOOP' => "{", 'COP' => ";", 'PADOP' => "#");
 
 no warnings 'qw'; # "Possible attempt to put comments..."; use #7
-my @linenoise =
-  qw'#  () sc (  @? 1  $* gv *{ m$ m@ m% m? p/ *$ $  $# & a& pt \\ s\\ rf bl
-     `  *? <> ?? ?/ r/ c/ // qr s/ /c y/ =  @= C  sC Cp sp df un BM po +1 +I
-     -1 -I 1+ I+ 1- I- ** *  i* /  i/ %$ i% x  +  i+ -  i- .  "  << >> <  i<
-     >  i> <= i, >= i. == i= != i! <? i? s< s> s, s. s= s! s? b& b^ b| -0 -i
-     !  ~  a2 si cs rd sr e^ lg sq in %x %o ab le ss ve ix ri sf FL od ch cy
-     uf lf uc lc qm @  [f [  @[ eh vl ky dl ex %  ${ @{ uk pk st jn )  )[ a@
-     a% sl +] -] [- [+ so rv GS GW MS MW .. f. .f && || ^^ ?: &= |= -> s{ s}
-     v} ca wa di rs ;; ;  ;d }{ {  }  {} f{ it {l l} rt }l }n }r dm }g }e ^o
-     ^c ^| ^# um bm t~ u~ ~d DB db ^s se ^g ^r {w }w pf pr ^O ^K ^R ^W ^d ^v
-     ^e ^t ^k t. fc ic fl .s .p .b .c .l .a .h g1 s1 g2 s2 ?. l? -R -W -X -r
-     -w -x -e -o -O -z -s -M -A -C -S -c -b -f -d -p -l -u -g -k -t -T -B cd
-     co cr u. cm ut r. l@ s@ r@ mD uD oD rD tD sD wD cD f$ w$ p$ sh e$ k$ g3
-     g4 s4 g5 s5 T@ C@ L@ G@ A@ S@ Hg Hc Hr Hw Mg Mc Ms Mr Sg Sc So rq do {e
-     e} {t t} g6 G6 6e g7 G7 7e g8 G8 8e g9 G9 9e 6s 7s 8s 9s 6E 7E 8E 9E Pn
-     Pu GP SP EP Gn Gg GG SG EG g0 c$ lk t$ ;s n> // /= CO';
 
 my $chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -708,7 +642,7 @@ sub concise_op {
     }
     $h{addr} = sprintf("%#x", $$op);
     $h{typenum} = $op->type;
-    $h{noise} = $linenoise[$op->type];
+    $h{noise} = '';
 
     return fmt_line(\%h, $op, $format, $level);
 }
@@ -747,53 +681,13 @@ sub b_terse {
 	my $h = {"seq" => seq($lastnext), "class" => class($lastnext),
 		 "addr" => sprintf("%#x", $$lastnext)};
 	print # $walkHandle
-	    fmt_line($h, $op, $style{"terse"}[1], $level+1);
+	    fmt_line($h, $op, '', $level+1);
     }
     $lastnext = $op->next;
     print # $walkHandle 
-	concise_op($op, $level, $style{"terse"}[0]);
+	concise_op($op, $level, '');
 }
 
-# *** Warning: fragile kludge ahead ***
-# Because the B::* modules run in the same interpreter as the code
-# they're compiling, their presence tends to distort the view we have of
-# the code we're looking at. In particular, perl gives sequence numbers
-# to COPs. If the program we're looking at were run on its own, this
-# would start at 1. Because all of B::Concise and all the modules it
-# uses are compiled first, though, by the time we get to the user's
-# program the sequence number is already pretty high, which could be
-# distracting if you're trying to tell OPs apart. Therefore we'd like to
-# subtract an offset from all the sequence numbers we display, to
-# restore the simpler view of the world. The trick is to know what that
-# offset will be, when we're still compiling B::Concise!  If we
-# hardcoded a value, it would have to change every time B::Concise or
-# other modules we use do. To help a little, what we do here is compile
-# a little code at the end of the module, and compute the base sequence
-# number for the user's program as being a small offset later, so all we
-# have to worry about are changes in the offset.
-
-# [For 5.8.x and earlier perl is generating sequence numbers for all ops,
-#  and using them to reference labels]
-
-
-# When you say "perl -MO=Concise -e '$a'", the output should look like:
-
-# 4  <@> leave[t1] vKP/REFC ->(end)
-# 1     <0> enter ->2
- #^ smallest OP sequence number should be 1
-# 2     <;> nextstate(main 1 -e:1) v ->3
- #                         ^ smallest COP sequence number should be 1
-# -     <1> ex-rv2sv vK/1 ->4
-# 3        <$> gvsv(*a) s ->4
-
-# If the second of the marked numbers there isn't 1, it means you need
-# to update the corresponding magic number in the next line.
-# Remember, this needs to stay the last things in the module.
-
-# Why is this different for MacOS?  Does it matter?
-my $cop_seq_mnum = $^O eq 'MacOS' ? 12 : 11;
-$cop_seq_base = svref_2object(eval 'sub{0;}')->START->cop_seq + $cop_seq_mnum;
+$cop_seq_base = 1;
 
 1;
-
-__END__
