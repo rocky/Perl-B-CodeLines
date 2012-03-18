@@ -1,5 +1,5 @@
 #!/bin/bash
-perl -I.. -MO=Lines,-exec -e '$a = $b + 43;
+perl -I.. -MO=CodeLines,-exec -e '$a = $b + 43;
 
 
 $y=4'

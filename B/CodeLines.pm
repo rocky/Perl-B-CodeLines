@@ -1,9 +1,11 @@
-package B::Lines;
+package B::CodeLines;
 use strict; use warnings; 
 
 our $VERSION   = "0.78";
 
-use B qw(class main_start main_root main_cv OPf_KIDS);
+use B qw(class main_start main_root main_cv OPf_KIDS walksymtable);
+
+my $current_file;
 
 # use Enbugger;
 sub concise_main {
@@ -12,6 +14,9 @@ sub concise_main {
     return if class(main_root) eq "NULL";
     walk_topdown(main_root,
 		 sub { $_[0]->concise($_[1]) }, 0);
+    # print "+++1 $current_file\n";
+    # walksymtable(\%main::, 'print_subs', 1, 'B::Lines::');
+
 }
 
 sub compile {
@@ -73,6 +78,7 @@ sub sequence {
 sub concise_op {
     my ($op) = @_;
     if ('COP' eq class($op)) {
+	$current_file = $op->file;
 	return sprintf "Line: %s\n", $op->line;
     }
     return '';
@@ -82,5 +88,17 @@ sub B::OP::concise {
     my($op) = @_;
     print concise_op($op);
 }
+
+sub B::GV::print_subs
+  {
+    my($gv) = @_;
+    # Should bail if $gv->FILE ne $B::Lines::current_file.
+    print $gv->NAME(), " ", $gv->FILE(), "\n";
+    eval {
+      walk_topdown($gv->CV->START,
+		   sub { $_[0]->concise($_[1]) }, 0) 
+    };
+  };
+
 
 1;

@@ -2,7 +2,7 @@
 use strict; use warnings;
 use English;
 use File::Basename;
-my $dir = dirname(__FILE__) . '/..';
+my $dir = dirname(__FILE__);
 # Something to make sure we are recursing subroutines.
 sub five() {
     5
@@ -18,7 +18,7 @@ open FH, '<', $file or die $!;
 local $INPUT_RECORD_SEPARATOR; # enable localized slurp mode
 my $content = <FH>;
 open STDERR, '>', '/dev/null' or die $!;
-my $rc = system ($EXECUTABLE_NAME, "-I$dir", '-MO=Lines,-exec', '-e', 
+my $rc = system ($EXECUTABLE_NAME, "-I$dir", '-MO=CodeLines,-exec', '-e', 
 		 $content);
 unless (0 == $rc) {
     die "$file didn't parse\n";
