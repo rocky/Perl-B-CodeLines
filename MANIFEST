@@ -1,0 +1,12 @@
+Build.PL
+examples/dolines.pl
+examples/dolines.sh
+lib/B/CodeLines.pm
+t/10-test-basic.t
+GNUmakefile                     annotated GNU makfile interface to Build.PL
+CHANGES                         What's up
+README.pod                      Overall information
+MANIFEST			This list of files
+Makefile.PL
+META.yml
+META.json
