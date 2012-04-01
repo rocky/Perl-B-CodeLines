@@ -1,4 +1,10 @@
 package B::CodeLines;
+# Copyright (C) 2012 Rocky Bernstein. All rights reserved.
+# This program is free software; you can redistribute and/or modify it
+# under the same terms as Perl itself.
+
+# B::Concise was used as a guide for how to write this.
+
 use strict; use warnings; 
 
 our $VERSION   = '1.0';
@@ -8,19 +14,19 @@ use B qw(class main_start main_root main_cv OPf_KIDS walksymtable);
 my $current_file;
 
 # use Enbugger;
-sub concise_main {
+sub main {
     sequence(main_start);
     # Enbugger->stop;
     return if class(main_root) eq "NULL";
     walk_topdown(main_root,
-		 sub { $_[0]->concise($_[1]) }, 0);
+		 sub { $_[0]->codelines($_[1]) }, 0);
     # print "+++1 $current_file\n";
     # walksymtable(\%main::, 'print_subs', 1, 'B::Lines::');
 
 }
 
 sub compile {
-    return sub { concise_main(); }
+    return sub { main(); }
 }
 
 sub walk_topdown {
@@ -75,18 +81,12 @@ sub sequence {
     }
 }
 
-sub concise_op {
-    my ($op) = @_;
+sub B::OP::codelines {
+    my($op) = @_;
     if ('COP' eq class($op)) {
 	$current_file = $op->file;
-	return sprintf "%s\n", $op->line;
+	printf "%s\n", $op->line;
     }
-    return '';
-}
-
-sub B::OP::concise {
-    my($op) = @_;
-    print concise_op($op);
 }
 
 sub B::GV::print_subs
@@ -96,7 +96,7 @@ sub B::GV::print_subs
     print $gv->NAME(), " ", $gv->FILE(), "\n";
     eval {
       walk_topdown($gv->CV->START,
-		   sub { $_[0]->concise($_[1]) }, 0) 
+		   sub { $_[0]->codelines($_[1]) }, 0) 
     };
   };
 

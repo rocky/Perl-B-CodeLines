@@ -27,3 +27,12 @@ B::CodeLines - Lists executable lines of a Perl program
 
 =head1 AUTHOR
        Rocky Bernstein, <rocky@cpan.org>.
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright (c) 2012 Rocky Bernstein.
+
+=head2 LICENSE
+
+Same terms as Perl.
+
