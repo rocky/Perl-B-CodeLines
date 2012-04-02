@@ -6,7 +6,7 @@ B::CodeLines - Lists executable lines of a Perl program
 
            perl -MO=CodeLines foo.pl
            perl -MO=CodeLines,-exec -e '# string exec form
-           $your='Perl code';
+           $your="Perl code";
            goes("here");
            '
 
