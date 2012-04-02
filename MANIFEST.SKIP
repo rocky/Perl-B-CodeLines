@@ -68,6 +68,7 @@
 \bBUILD.COM$
 \bbuild.com$
 ^MANIFEST\.SKIP
+^how-to-make-a-release.txt
 
 # Avoid archives of this distribution
 \bB-CodeLines-[\d\.\_]+

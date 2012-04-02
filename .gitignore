@@ -1,8 +1,11 @@
 /B-CodeLines*.gz
 /Build
+/ChangeLog
 /MANIFEST.SKIP.bak
 /MYMETA.json
 /MYMETA.yml
 /Makefile.PL
 /_build
 /blib
+/how-to-make-a-release.txt
+/*~
