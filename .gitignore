@@ -1,1 +1,8 @@
-/*~
+/B-CodeLines*.gz
+/Build
+/MANIFEST.SKIP.bak
+/MYMETA.json
+/MYMETA.yml
+/Makefile.PL
+/_build
+/blib
