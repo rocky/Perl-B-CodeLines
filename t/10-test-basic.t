@@ -30,3 +30,4 @@ test_it("$EXECUTABLE_NAME -I$lib_dir -MO=CodeLines,-exec -e '
 your(\"Perl code\");
 goes(\"here\");
 '", [3, 4], 'string invocation');
+done_testing;
