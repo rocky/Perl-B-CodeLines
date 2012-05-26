@@ -7,7 +7,7 @@ package B::CodeLines;
 
 use strict; use warnings; 
 
-our $VERSION   = '1.0_1';
+our $VERSION   = '1.1';
 
 use B qw(class main_start main_root main_cv OPf_KIDS walksymtable);
 

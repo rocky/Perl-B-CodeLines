@@ -2,7 +2,12 @@
 use warnings; use strict;
 use English;  use File::Spec;
 use File::Basename;
-use Test::More 'no_plan';
+use Test::More;
+if ($OSNAME eq 'MSWin32') {
+    plan skip_all => "Strawberry Perl doesn't handle backtick" 
+} else {
+    plan;
+}
 
 sub test_it($$$)
 {
