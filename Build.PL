@@ -24,7 +24,7 @@ my $builder = Module::Build->new(
     add_to_cleanup      => [ 'Perl-B-CodeLines-*', 'tmp*', '*.got'  ],
     create_makefile_pl  => 'passthrough',
     dist_abstract       => 
-    'Finds the executable line numbers in a Perl program given as astring.',
+    'Finds the executable line numbers in a Perl program given as a string.',
     dist_author         => 'Rocky Bernstein <rocky@cpan.org>',
     dist_version_from   => 'lib/B/CodeLines.pm',
     license             => 'gpl',
@@ -33,6 +33,9 @@ my $builder = Module::Build->new(
     configure_requires  => { 
 	'Module::Build' => '0.32',
 			      
+    },
+    test_requires  => { 
+        'Test::Simple' => '0.81',
     },
     requires => {
 	'perl'                              => '5.008008',
