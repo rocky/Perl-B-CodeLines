@@ -21,7 +21,7 @@ local $INPUT_RECORD_SEPARATOR; # enable localized slurp mode
 my $content = <FH>;
 open STDERR, '>', '/dev/null' or die $!;
 my $rc = system ($EXECUTABLE_NAME, "-I$libdir", '-MO=CodeLines,-exec', '-e', 
-		 $content);
+		 "$content");
 unless (0 == $rc) {
     die "$file didn't parse\n";
 }
