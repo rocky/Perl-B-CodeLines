@@ -11,9 +11,12 @@ use B qw(class);
 use B::Utils;
 
 #  my $current_file;
+use vars qw(@results);
 
-sub main() {
-    my ($pkg, $top_file, $rest) = caller(2);
+@results = ();
+
+sub gather($) {
+    my $top_file = shift;
 
     my $callback = sub { 
         my $op = $_[0];
@@ -40,6 +43,12 @@ sub main() {
 
 }
 
+sub main() {
+    my ($pkg, $top_file, $rest) = caller(2);
+    gather($top_file);
+    foreach my $tuple (@results) { print "$tuple->[0]\n"; }
+}
+
 sub compile {
     return \&main
 }
@@ -48,8 +57,16 @@ sub B::OP::codelines {
     my($op) = @_;
     if ('COP' eq class($op)) {
         # $current_file = $op->file;
-        printf "%s\n", $op->line;
+        push @B::CodeLines::results, [$op->line, +$op];
     }
 }
+
+# Demo code
+unless (caller) {
+    gather(__FILE__);
+    foreach my $tuple (@results) { 
+	printf "%02d %0x\n", $tuple->[0], $tuple->[1]; 
+    }
+};
 
 1;
