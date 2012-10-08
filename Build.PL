@@ -40,6 +40,7 @@ my $builder = Module::Build->new(
     requires => {
 	'perl'                              => '5.008008',
         'version'                           => 0,
+        'B::Utils'                          => '0.21_01',
     },
     sign                => ($ENV{PERL_MB_NOSIGN} ? 0 : 1),
     );
