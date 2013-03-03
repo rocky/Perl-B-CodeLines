@@ -4,12 +4,17 @@ B::CodeLines - Lists executable lines of a Perl program
 
 =head1 SYNOPSIS
 
-           perl -MO=CodeLines foo.pl
-           perl -MO=CodeLines,-exec -e '# string exec form
-           $your="Perl code";
-           goes("here");
-           '
+Backend module to List all of the lines in a Perl program that has associated code.
 
+Examples: 
+
+   perl -MO=CodeLines foo.pl
+
+   perl 2>/dev/null -MO=CodeLines,-exec -e '# string exec form
+$your="Perl code"; 
+goes("here"); '
+
+           
 =head1 DESCRIPTION
 
 This compiler backend prints the out the line numbers of the stopping
@@ -23,7 +28,6 @@ For the second example above, the output is:
 
     2
     3
-    -e syntax OK
 
 =head1 AUTHOR
        Rocky Bernstein, <rocky@cpan.org>.
