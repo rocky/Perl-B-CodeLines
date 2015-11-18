@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-#  Copyright (C) 2012 Rocky Bernstein <rocky@cpan.org>
+#  Copyright (C) 2012, 2015 Rocky Bernstein <rocky@cpan.org>
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -19,22 +19,22 @@ use warnings;
 use Module::Build;
 use Config;
 
-my $builder = Module::Build->new( 
+my $builder = Module::Build->new(
     module_name         => 'B::CodeLines',
     add_to_cleanup      => [ 'Perl-B-CodeLines-*', 'tmp*', '*.got'  ],
     create_makefile_pl  => 'passthrough',
-    dist_abstract       => 
+    dist_abstract       =>
     'Finds the executable line numbers in a Perl program given as a string.',
     dist_author         => 'Rocky Bernstein <rocky@cpan.org>',
     dist_version_from   => 'lib/B/CodeLines.pm',
     license             => 'gpl',
     needs_compiler      => 0,
     release_status      => 'stable',
-    configure_requires  => { 
+    configure_requires  => {
 	'Module::Build' => '0.32',
-			      
+
     },
-    test_requires  => { 
+    test_requires  => {
         'Test::Simple' => '0.81',
     },
     requires => {
