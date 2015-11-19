@@ -17,7 +17,7 @@ use vars qw(@prog_args);
 sub new {
     my $class = shift;
     my $self = bless {}, $class;
-    $self->{results} = ();
+    $self->{file} = {};
     $self->{output_format} = 'lines';
     while (my $arg = shift @_) {
     	if ($arg eq "-c") {
@@ -37,16 +37,25 @@ line numbers associated with them, provided the associated file is
 equal to $top_file.
 
 The resulting array of line number and opcode address
-is stored in $self->{results}. And that is returned.
+is stored in $self->{results}.
 
 =cut
-sub gather($$) {
-    my ($self, $top_file) = @_;
+
+sub gather($;$)
+{
+    my ($self, $collect_file) = @_;
 
     my $callback = sub {
         my $op = $_[0];
-        push @{$self->{results}}, [$op->line, +$op]
-	    if 'COP' eq B::class($op) and $top_file eq $op->file;
+	return unless 'COP' eq B::class($op);
+	return if defined $collect_file && $collect_file ne $op->file;
+	my $ary;
+	if (exists $self->{file}{$op->file}) {
+	    $ary = $self->{file}{$op->file};
+	} else {
+	    $ary = $self->{file}{$op->file} = [];
+	}
+	push @{$ary}, [$op->line, +$op];
     };
 
     foreach (values %{B::Utils::all_roots()}) {
@@ -60,6 +69,8 @@ sub gather($$) {
     foreach (@{B::Utils::anon_subs()}) {
         eval { B::Utils::walkoptree_simple( $_, $callback ); }
     }
+
+    $self->{file};
 }
 
 =head3
@@ -75,8 +86,15 @@ sub gather_counts($)
 {
     my $self = shift;
     my %counts = ();
-    foreach my $tuple (@{$self->{results}}) {
-	$counts{$tuple->[0]}++;
+    foreach my $file (keys %{$self->{file}}) {
+	my @ary = @{$self->{file}{$file}};
+	foreach my $tuple (@ary) {
+	    my $line = $tuple->[0];
+	    if (not exists $counts{$file}) {
+		$counts{$file} = {};
+	    }
+	    $counts{$file}{$line}++;
+	}
     }
     return \%counts;
 }
@@ -94,12 +112,18 @@ sub gather_ops($)
 {
     my $self = shift;
     my %counts = ();
-    foreach my $tuple (@{$self->{results}}) {
-	my ($key, $value) = @{$tuple};
-	if (exists $counts{$key}) {
-	    push @{$counts{$key}}, $value;
-	} else {
-	    @{$counts{$key}} = [$value];
+    foreach my $file (keys %{$self->{file}}) {
+	my @ary = @{$self->{file}{$file}};
+	foreach my $tuple (@ary) {
+	    my ($key, $value) = @{$tuple};
+	    if (not exists $counts{$file}) {
+		$counts{$file} = {};
+	    }
+	    if (exists $counts{$file}{$key}) {
+		push @{$counts{$file}{$key}}, $value;
+	    } else {
+		$counts{$file}{$key} = [$value];
+	    }
 	}
     }
     return \%counts;
@@ -107,7 +131,8 @@ sub gather_ops($)
 
 sub main() {
     my $self = __PACKAGE__->new(@prog_args);
-    my ($pkg, $top_file, $rest) = caller(2);
+   my ($pkg, $top_file, $rest) = caller(2);
+    print $top_file, "\n";
     $self->gather($top_file);
     my $output_format = $self->{output_format};
     if ($output_format eq 'counts') {
@@ -146,21 +171,34 @@ unless (caller) {
     my $cl = __PACKAGE__->new(@_);
     $cl->gather($file);
     print "line: address\n";
-    foreach $tuple (@{$cl->{results}}) {
-	printf "%4d: 0x%x\n", $tuple->[0], $tuple->[1];
+    my $ary = $cl->{file}{$file};
+    foreach $tuple (@{$ary}) {
+    	printf "%4d: 0x%x\n", $tuple->[0], $tuple->[1];
     }
+
+    # Redo with everything;
+    $cl = __PACKAGE__->new(@_);
+    $cl->gather();
     print '-' x 20, "\n";
     print "line: counts\n";
-    my $counts = $cl->gather_counts();
-    foreach my $key (sort {$a <=> $b} keys(%{$counts})) {
-	printf "%4d: %d\n", $key, $counts->{$key};
+    my $all_counts = $cl->gather_counts();
+    foreach my $file (keys %{$all_counts}) {
+	print "File $file\n";
+	my $counts = $all_counts->{$file};
+	foreach my $key (sort {$a <=> $b} keys(%{$counts})) {
+	    printf "%4d: %d\n", $key, $counts->{$key};
+	}
     }
 
     print '-' x 20, "\n";
-    my $ops = $cl->gather_ops();
     print "line: addresses\n";
-    foreach my $key (sort {$a <=> $b} keys(%{$ops})) {
-	printf "%4d: [%s]\n", $key, join(', ', map sprintf("0x%x", $_), @{$ops->{$key}});
+    my $all_ops = $cl->gather_ops();
+    foreach my $file (keys %{$all_ops}) {
+	print "File $file\n";
+	my $ops = $all_ops->{$file};
+	foreach my $key (sort {$a <=> $b} keys(%{$ops})) {
+	    printf "%4d: [%s]\n", $key, join(', ', map sprintf("0x%x", $_), @{$ops->{$key}});
+	}
     }
 };
 

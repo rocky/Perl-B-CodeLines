@@ -13,7 +13,7 @@ sub test_it($$$)
     my $rc = $CHILD_ERROR >> 8;
     is($rc, 0, "$msg run successfully");
     map {chomp} @lines;
-    is_deeply(\@lines, $expect_ary, "$msg output compares");
+    is_deeply(\@lines, $expect_ary, "$msg output comparison:");
 }
 
 my $top_dir = File::Spec->catfile(dirname(__FILE__), '..');
@@ -23,12 +23,15 @@ my $top_dir = File::Spec->catfile(dirname(__FILE__), '..');
 #     test_it("$EXECUTABLE_NAME $test_prog", $expect, 'file invocation');
 # }
 
-my $lib_dir = File::Spec->catfile($top_dir, 'lib');
-my $code = '
+ SKIP: {
+     skip "Need more on -e", 1;
+     my $lib_dir = File::Spec->catfile($top_dir, 'lib');
+     my $code = '
 # string exec form
 your(\"Perl code\");
 goes(\"here\");
-';
+     ';
 test_it("$EXECUTABLE_NAME -I$lib_dir -MO=CodeLines,-exec -e \"$code\"",
 	[3, 4], 'string invocation');
+};
 done_testing;
