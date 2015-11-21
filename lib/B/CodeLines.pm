@@ -7,10 +7,11 @@ use strict; use warnings;
 
 our $VERSION   = '1.2';
 
-use B qw(class);
+use B qw(class main_start main_root main_cv OPf_KIDS walksymtable);
 use B::Utils;
 
-#  my $current_file;
+my $current_self;
+
 use vars qw(@prog_args);
 @prog_args = ();
 
@@ -129,27 +130,110 @@ sub gather_ops($)
     return \%counts;
 }
 
-sub main() {
-    my $self = __PACKAGE__->new(@prog_args);
-   my ($pkg, $top_file, $rest) = caller(2);
-    print $top_file, "\n";
-    $self->gather($top_file);
-    my $output_format = $self->{output_format};
-    if ($output_format eq 'counts') {
-	my $counts = $self->gather_counts();
-	foreach my $key (sort {$a <=> $b} keys(%{$counts})) {
-	    print "$key $counts->{$key}\n";
+sub walk_topdown {
+    my($op, $sub, $level) = @_;
+    $sub->($op, $level);
+    if ($op->flags & OPf_KIDS) {
+	for (my $kid = $op->first; $$kid; $kid = $kid->sibling) {
+	    walk_topdown($kid, $sub, $level + 1);
 	}
-    } elsif ($output_format eq 'raw')  {
-	foreach my $tuple (@{$self->{results}}) {
-	    printf "%s 0x%x\n", $tuple->[0], $tuple->[1];
-	}
-    } else {
-	foreach my $tuple (@{$self->{results}}) {
-	    print $tuple->[0], "\n";
+    }
+    elsif (class($op) eq "PMOP") {
+	my $maybe_root = $op->pmreplroot;
+	if (ref($maybe_root) and $maybe_root->isa("B::OP")) {
+	    # It really is the root of the replacement, not something
+	    # else stored here for lack of space elsewhere
+	    walk_topdown($maybe_root, $sub, $level + 1);
 	}
     }
 }
+
+# The structure of this routine is purposely modeled after op.c's peep()
+sub sequence {
+    my($op) = @_;
+    my $oldop = 0;
+    return if class($op) eq "NULL";
+    for (; $$op; $op = $op->next) {
+	my $name = $op->name;
+	if ($name =~ /^(null|scalar|lineseq|scope)$/) {
+	    next if $oldop and $ {$op->next};
+	} else {
+	    if (class($op) eq "LOGOP") {
+		my $other = $op->other;
+		$other = $other->next while $other->name eq "null";
+		sequence($other);
+	    } elsif (class($op) eq "LOOP") {
+		my $redoop = $op->redoop;
+		$redoop = $redoop->next while $redoop->name eq "null";
+		sequence($redoop);
+		my $nextop = $op->nextop;
+		$nextop = $nextop->next while $nextop->name eq "null";
+		sequence($nextop);
+		my $lastop = $op->lastop;
+		$lastop = $lastop->next while $lastop->name eq "null";
+		sequence($lastop);
+	    } elsif ($name eq "subst" and $ {$op->pmreplstart}) {
+		my $replstart = $op->pmreplstart;
+		$replstart = $replstart->next while $replstart->name eq "null";
+		sequence($replstart);
+	    }
+	}
+	$oldop = $op;
+    }
+}
+
+sub B::OP::codelines {
+    my($op) = @_;
+    if ('COP' eq class($op)) {
+	my $ary;
+	if (!exists $current_self->{file}{$op->file}) {
+	    $current_self->{file}{$op->file} = [];
+	}
+	$ary = $current_self->{file}{$op->file};
+	push @{$ary}, [$op->line, +$op];
+    }
+}
+
+sub B::GV::print_subs
+  {
+    my($gv) = @_;
+    # Should bail if $gv->FILE ne $B::Lines::current_file.
+    print $gv->NAME(), " ", $gv->FILE(), "\n";
+    eval {
+      walk_topdown($gv->CV->START,
+		   sub { $_[0]->codelines($_[1]) }, 0)
+    };
+  };
+
+
+sub main {
+    my $self = __PACKAGE__->new(@prog_args);
+    my ($pkg, $top_file, $rest) = caller(2);
+    $current_self = $self;
+    sequence(main_start);
+    return if class(main_root) eq "NULL";
+    walk_topdown(main_root,
+		 sub { $_[0]->codelines($_[1]) }, 0);
+    my $output_format = $self->{output_format};
+    my $results = $current_self->{file}{$top_file};
+    if ($output_format eq 'counts') {
+	my $counts = $current_self->gather_counts();
+	foreach my $key (sort {$a <=> $b} keys(%{$counts->{$top_file}})) {
+	    print "$key $counts->{$top_file}{$key}\n";
+	}
+    } elsif ($output_format eq 'raw')  {
+	foreach my $tuple (@{$results}) {
+	    printf "%s 0x%x\n", $tuple->[0], $tuple->[1];
+	}
+    } else {
+	foreach my $tuple (@{$results}) {
+	    print $tuple->[0], "\n";
+	}
+    }
+    # print "+++1 $current_file\n";
+    # walksymtable(\%main::, 'print_subs', 1, 'B::Lines::');
+}
+
 
 =head3
 
@@ -159,7 +243,7 @@ perl -MO=Codelines as part of Perl's "compilation" phase.
 =cut
 sub compile {
     @prog_args = @_;
-    return \&main
+    return sub { main(); }
 }
 
 # Demo code
