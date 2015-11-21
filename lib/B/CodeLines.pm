@@ -71,6 +71,7 @@ sub gather($;$)
         eval { B::Utils::walkoptree_simple( $_, $callback ); }
     }
 
+    walksymtable(\%main::, 'print_subs', sub { 1 }, '');
     $self->{file};
 }
 
@@ -197,13 +198,12 @@ sub B::OP::codelines {
 sub B::GV::print_subs
   {
     my($gv) = @_;
-    # Should bail if $gv->FILE ne $B::Lines::current_file.
-    print $gv->NAME(), " ", $gv->FILE(), "\n";
-    eval {
-      walk_topdown($gv->CV->START,
-		   sub { $_[0]->codelines($_[1]) }, 0)
-    };
-  };
+    # print "name: ", $gv->NAME(), " line: ", $gv->LINE(), " file: ", $gv->FILE(), "\n";
+    if ($gv->CV->can('START') && !$gv->CV->START->isa('B::NULL')) {
+	walk_topdown($gv->CV->START,
+		     sub { B::OP::codelines($_[0]) }, 0)
+    }
+  }
 
 
 sub main {
@@ -215,9 +215,9 @@ sub main {
     walk_topdown(main_root,
 		 sub { $_[0]->codelines($_[1]) }, 0);
     my $output_format = $self->{output_format};
-    my $results = $current_self->{file}{$top_file};
+    my $results = $self->{file}{$top_file};
     if ($output_format eq 'counts') {
-	my $counts = $current_self->gather_counts();
+	my $counts = $self->gather_counts();
 	foreach my $key (sort {$a <=> $b} keys(%{$counts->{$top_file}})) {
 	    print "$key $counts->{$top_file}{$key}\n";
 	}
@@ -231,7 +231,8 @@ sub main {
 	}
     }
     # print "+++1 $current_file\n";
-    # walksymtable(\%main::, 'print_subs', 1, 'B::Lines::');
+    # use Enbugger; Enbugger->stop;
+    walksymtable(\%main::, 'print_subs', sub { 1 }, '');
 }
 
 

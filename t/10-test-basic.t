@@ -31,4 +31,12 @@ goes(\"here\");
      ';
 test_it("$EXECUTABLE_NAME -I$lib_dir -MO=CodeLines,-exec -e \"$code\"",
 	[3, 4], 'string invocation');
+
+my $test_prog = File::Spec->catfile($top_dir, 'examples', 'three.pl');
+
+test_it("$EXECUTABLE_NAME -I$lib_dir -MO=CodeLines $test_prog",
+	["1", "1", "2", "3"], 'file invocation without counts');
+
+test_it("$EXECUTABLE_NAME -I$lib_dir -MO=CodeLines,-c $test_prog",
+	["1 2", "2 1", "3 1"], 'file invocation with counts');
 done_testing;
