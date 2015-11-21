@@ -19,6 +19,8 @@ sub new {
     my $class = shift;
     my $self = bless {}, $class;
     $self->{file} = {};
+    $self->{subs_todo} = [];
+    $self->{subs_processed} = {};
     $self->{output_format} = 'lines';
     while (my $arg = shift @_) {
     	if ($arg eq "-c") {
@@ -28,6 +30,26 @@ sub new {
     	}
     }
     return $self;
+}
+
+sub walk_topdown($$$);
+
+sub walk_topdown($$$) {
+    my($op, $fn, $level) = @_;
+    $fn->($op, $level);
+    if ($op->flags & OPf_KIDS) {
+	for (my $kid = $op->first; $$kid; $kid = $kid->sibling) {
+	    walk_topdown($kid, $fn, $level + 1);
+	}
+    }
+    elsif (class($op) eq "PMOP") {
+	my $maybe_root = $op->pmreplroot;
+	if (ref($maybe_root) and $maybe_root->isa("B::OP")) {
+	    # It really is the root of the replacement, not something
+	    # else stored here for lack of space elsewhere
+	    walk_topdown($maybe_root, $fn, $level + 1);
+	}
+    }
 }
 
 =head3
@@ -72,6 +94,15 @@ sub gather($;$)
     }
 
     walksymtable(\%main::, 'print_subs', sub { 1 }, '');
+
+    foreach my $cv (@{$current_self->{subs_todo}}) {
+	my $fn_name =$cv->STASH->NAME."::".$cv->GV->NAME;
+     	if ($current_self->{'subs_processed'}{$fn_name} == 1) {
+	    B::Utils::walkoptree_simple( $cv->ROOT, $callback );
+	    $current_self->{'subs_processed'}{$fn_name}++;
+	}
+    }
+
     $self->{file};
 }
 
@@ -131,24 +162,6 @@ sub gather_ops($)
     return \%counts;
 }
 
-sub walk_topdown {
-    my($op, $sub, $level) = @_;
-    $sub->($op, $level);
-    if ($op->flags & OPf_KIDS) {
-	for (my $kid = $op->first; $$kid; $kid = $kid->sibling) {
-	    walk_topdown($kid, $sub, $level + 1);
-	}
-    }
-    elsif (class($op) eq "PMOP") {
-	my $maybe_root = $op->pmreplroot;
-	if (ref($maybe_root) and $maybe_root->isa("B::OP")) {
-	    # It really is the root of the replacement, not something
-	    # else stored here for lack of space elsewhere
-	    walk_topdown($maybe_root, $sub, $level + 1);
-	}
-    }
-}
-
 # The structure of this routine is purposely modeled after op.c's peep()
 sub sequence {
     my($op) = @_;
@@ -183,6 +196,33 @@ sub sequence {
     }
 }
 
+sub is_state($)
+{
+    my $name = $_[0]->name;
+    return $name eq "nextstate" || $name eq "dbstate" || $name eq "setstate";
+}
+
+
+sub todo
+{
+    my $self = shift;
+    my($cv, $is_form) = @_;
+    my $seq;
+    if ($cv->OUTSIDE_SEQ) {
+	$seq = $cv->OUTSIDE_SEQ;
+    } elsif (!null($cv->START) and is_state($cv->START)) {
+	$seq = $cv->START->cop_seq;
+    } else {
+	$seq = 0;
+    }
+    push @{$self->{'subs_todo'}}, $cv;
+    my $fn_name = $cv->STASH->NAME."::".$cv->GV->NAME;
+    # printf "XX %s, %s %s\n", $seq, $cv, $fn_name;
+    unless ($is_form || class($cv->STASH) eq 'SPECIAL' ) {
+     	$self->{'subs_processed'}{$fn_name} = 1;
+    }
+}
+
 sub B::OP::codelines {
     my($op) = @_;
     if ('COP' eq class($op)) {
@@ -196,14 +236,15 @@ sub B::OP::codelines {
 }
 
 sub B::GV::print_subs
-  {
+{
     my($gv) = @_;
     # print "name: ", $gv->NAME(), " line: ", $gv->LINE(), " file: ", $gv->FILE(), "\n";
     if ($gv->CV->can('START') && !$gv->CV->START->isa('B::NULL')) {
 	walk_topdown($gv->CV->START,
-		     sub { B::OP::codelines($_[0]) }, 0)
+		     sub { B::OP::codelines($_[0]) }, 0);
+	todo($current_self, $gv->CV, 0);
     }
-  }
+}
 
 
 sub main {
