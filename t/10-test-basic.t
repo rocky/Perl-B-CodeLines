@@ -39,4 +39,8 @@ test_it("$EXECUTABLE_NAME -I$lib_dir -MO=CodeLines $test_prog",
 
 test_it("$EXECUTABLE_NAME -I$lib_dir -MO=CodeLines,-c $test_prog",
 	["1 2", "2 1", "3 1"], 'file invocation with counts');
+
+# my $test_prog = File::Spec->catfile($top_dir, 'examples', 'five.pl');
+# test_it("$EXECUTABLE_NAME -I$lib_dir -MO=CodeLines,-c $test_prog",
+# 	["3 1", "5 1"], 'file invocation with subroutine');
 done_testing;
